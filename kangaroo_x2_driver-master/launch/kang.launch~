@@ -1,0 +1,12 @@
+<launch>
+
+	<node name="kangaroo_node" pkg="kangaroo_driver"
+		  type="kangaroo_driver_node" launch-prefix="xterm -e gdb">
+	  <param name="port" value="/dev/ttyACM0" />
+      <param name="baud" value="9600" />
+      <param name="ch1_joint_name" value="1" />
+      <param name="ch2_joint_name" value="2" />
+	</node>
+
+
+</launch>
