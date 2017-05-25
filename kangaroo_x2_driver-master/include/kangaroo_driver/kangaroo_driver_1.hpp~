@@ -18,7 +18,7 @@ class kangaroo
 {
 public:
 	kangaroo( ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv );
-	//~kangaroo();
+	~kangaroo();
 	bool open( );
 	void close( );
 	bool start( );
@@ -38,6 +38,9 @@ private:
 	bool set_channel_pos(double position, double speedLimit, unsigned char address, char channel);
 	bool send_start_signals(uint8_t address);
 	void home();
+	void kangaroo::setPosition( double val, int speed);
+	void kangaroo::setSpeed( double val);
+	
 
 	// functions used for the request - response  (JointStateCB)
 	int get_parameter(unsigned char address, char channel, unsigned char desired_parameter);

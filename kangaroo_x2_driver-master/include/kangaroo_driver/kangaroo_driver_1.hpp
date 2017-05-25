@@ -38,6 +38,9 @@ private:
 	bool set_channel_pos(double position, double speedLimit, unsigned char address, char channel);
 	bool send_start_signals(uint8_t address);
 	void home();
+	void setPosition( double val, int speed);
+	void setSpeed( double val);
+	
 
 	// functions used for the request - response  (JointStateCB)
 	int get_parameter(unsigned char address, char channel, unsigned char desired_parameter);

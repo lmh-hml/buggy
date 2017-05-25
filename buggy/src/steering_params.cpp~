@@ -17,7 +17,7 @@ void JoyCallback( const sensor_msgs::Joy::ConstPtr& js)
 	bool   unlockOn   = false;
 	if(type=="gamepad") 
 	{
-		cmd_vel.linear.x  = (js->axes[linearX]-1.0) / -2.0; //to/fro
+		cmd_vel.linear.x  = js->axes[linearX]; //to/fro
 		cmd_vel.linear.z  = js->buttons[brake];             //brake
 		cmd_vel.linear.y  = js->buttons[unlock];            //unlock
 		cmd_vel.angular.z = js->axes[angularZ]; //rotate left/right 

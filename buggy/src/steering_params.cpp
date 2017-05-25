@@ -12,6 +12,8 @@ std::string type;
 int linearX,linearY,angularZ, brake, unlock, home;
 bool initialized=false;
 
+
+
 void JoyCallback( const sensor_msgs::Joy::ConstPtr& js)
 {
 	bool   unlockOn   = false;

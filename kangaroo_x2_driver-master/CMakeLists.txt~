@@ -104,12 +104,18 @@ add_library(kang_lib
 ## Declare a cpp executable
 add_executable(kangaroo_driver_node src/kangaroo_driver_node.cpp src/kangaroo_driver_1.cpp)
 
+add_executable(kangaroo_driver_node_loop src/kangaroo_driver_node_loop.cpp src/kangaroo_driver_loop.cpp)
+
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(robot_test_node robot_test_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(kangaroo_driver_node kang_lib
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(kangaroo_driver_node_loop kang_lib
   ${catkin_LIBRARIES}
 )
 

@@ -1,6 +1,6 @@
 #include "kangaroo_driver/kangaroo_driver_1.hpp"
 #include "kangaroo_driver/kang_lib.hpp"
-
+#include "util.h"
 #include <cstdlib>
 #include <cerrno>
 #include <cstring>
@@ -13,7 +13,6 @@
 #include <cmath>
 
 
-
 //namespace kangaroo
 //{
 
@@ -24,7 +23,7 @@ kangaroo::kangaroo( ros::NodeHandle &_nh, ros::NodeHandle &_nh_priv ) :
 	fd( -1 ),
 	nh( _nh ),
 	nh_priv( _nh_priv ),
-	encoder_lines_per_revolution(3200),
+	encoder_lines_per_revolution(5000),
 	hz(50),
 	true_max(0), true_min(0)
 	//diameter_of_wheels(.117475)
@@ -282,27 +281,28 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 		msg->position.resize(2);
 		msg->velocity.resize(2);
 		msg->header.stamp = ros::Time::now();
+		limit=0.8;
 		
-		limit=0.7;
 		// get_position and get_velocity might throw an exception if either
 		//   request or the read fails
-		int position_ln = msg->position[0] = get_parameter((unsigned char)128, '1', (unsigned char)1);	// position for ch1
-		int velocity_ln = msg->velocity[0] = get_parameter((unsigned char)128, '1', (unsigned char)2);	// velocity for ch1
-		true_min               = get_parameter((unsigned char)128, '1',(unsigned char)8);
-		true_max               = get_parameter((unsigned char)128, '1',(unsigned char)9);
-		set_min 	       = true_min * limit;
-		set_max 	       = true_max * limit;
-		range_ln	       = set_max - set_min;
+		long position_ln = msg->position[0] = get_parameter((unsigned char)128, '1', (unsigned char)1) /4;	// position for ch1
+		long velocity_ln = msg->velocity[0] = get_parameter((unsigned char)128, '1', (unsigned char)2) / 4;	// velocity for ch1
+		true_min               = get_parameter((unsigned char)128, '1',(unsigned char)8) /4;
+		true_max               = get_parameter((unsigned char)128, '1',(unsigned char)9) /4;
+		set_min 	       	   = true_min * limit;
+		set_max 	       	   = true_max * limit;
+		range_ln	       	   = set_max - set_min;
 		pos_rad = encoder_lines_to_radians(position_ln);
 		vel_rad = encoder_lines_to_radians(velocity_ln);
 		range_rad = encoder_lines_to_radians(range_ln); 
+		double turns = pos_rad/ (2*PI) ;
+	
+		pos_ratio = (range_ln!=0) ? ( (double)(position_ln) / (double)set_max ) : 0.0;
 
-		pos_ratio = (range_rad!=0) ? pos_rad/range_rad : -1.0;
-
-		ROS_INFO("max / min / range : %d, %d, %d, %.3f rads ", true_max, true_min,range_ln,range_rad);
-		ROS_INFO("Current Pos/Lines: %d, Position/Rads : %.3f, ratio: %.3f , targetPos:%d ",position_ln ,pos_rad, pos_ratio,target_pos);
-		ROS_INFO("Vel/lines %d, velocity: %.3f rad/s,target/lines: %d\n", velocity_ln,vel_rad,target_vel);
-
+		ROS_INFO("max / min / range : %d, %d, %d, %d lines ", set_max, set_min,range_ln,range_ln);
+		ROS_INFO("Current Pos/Lines: %d, Position/Rads : %.3f, ratio: %.3f , targetPos:%d ",position_ln , turns, pos_ratio,target_pos);
+		ROS_INFO("Vel/lines %.1f, velocity: %.3f rad/s,target/lines: %d\n", velocity_ln,vel_rad,target_vel);
+		
 
 
 	//	msg->name[1] = ch2_joint_name;
@@ -310,13 +310,9 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 	//  msg->velocity[1] = get_parameter((unsigned char)128, '2', (unsigned char)2);	// velocity for ch2
 	//	msg->position[1] = encoder_lines_to_radians(msg->position[1]);
 	//	msg->velocity[1] = encoder_lines_to_radians(msg->velocity[1]);
-
-	if( (pos_ratio >= limit && target_vel > 0.0) || (pos_ratio <= -limit && target_vel<0.0))
-	{
-		boost::mutex::scoped_lock output_lock(output_mutex);
-		set_channel_speed(0, 128, '1');
-	}
-
+	
+	if( ABS(position_ln) >= ABS(target_pos) && target_pos != 0.0) setSpeed(0);
+	
 	joint_state_pub.publish(msg);
 			
 	}
@@ -329,35 +325,43 @@ void kangaroo::JointStateCB( const ros::WallTimerEvent &e )
 
 void kangaroo::JoystickCB( const geometry_msgs::Twist::ConstPtr& cmd_vel)
 {
-
 	tcflush(fd, TCOFLUSH);
-
 	double val =           cmd_vel->angular.z; //-1.0 to 1.0
   	double homing =        cmd_vel->angular.x;
-
-	if(homing== 0.0)
+  	
+	if(homing == 0.0)
 	{
-		if( (pos_ratio >= limit && val > 0.0) || (pos_ratio <= -limit && val<0.0))
-		{
-			val=0.0;
-		}
-
-		target_vel = radians_to_encoder_lines(val)*100;
-
-		boost::mutex::scoped_lock output_lock(output_mutex);
-		set_channel_speed( target_vel,128, '1');
+		if( (pos_ratio >= limit && val > 0.0) || (pos_ratio <= -limit && val<0.0))val = 0.0;
+		setSpeed(val);
+		
+		//target_pos = val*set_max;
+		//setPosition( val*set_max, 7000);
+	
 	}
 	else
 	{
 		home();
 	}	
+}
 
+void kangaroo::setPosition( double val, int speed)
+{
+		double target_pos = set_max * val;
+		boost::mutex::scoped_lock output_lock(output_mutex);
+		set_channel_pos( target_pos,speed,128, '1');
+}
+
+void kangaroo::setSpeed( double val)
+{
+		double target_vel = radians_to_encoder_lines(val)*100;
+		boost::mutex::scoped_lock output_lock(output_mutex);
+		set_channel_speed( target_vel,128, '1');
 }
 
 void kangaroo::home()
 {
 	boost::mutex::scoped_lock output_lock(output_mutex);
-	set_channel_pos( 0,5000,128, '1');
+	set_channel_pos( 0,7000,128, '1');
 }
 
 // send the kangaroo a request to get the position, then read from the serial to get its response
