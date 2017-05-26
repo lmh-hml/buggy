@@ -1,0 +1,5 @@
+git status
+git add <changed file>
+git add -A             //git add every change to stage
+git commit -a          //Stage all changed/modified files 
+git push origin master //update remote repo( ie.github repo) 
